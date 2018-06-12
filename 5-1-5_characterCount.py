@@ -14,4 +14,11 @@ for character in message:
     count.setdefault(character, 0)
     count[character] = count[character] + 1
 
-print(count)
+import pprint
+
+pprint.pprint(count)
+
+# message is valiable to keep Kojiki
+# count is void dictionary
+
+# "for character is message", repeat below 
