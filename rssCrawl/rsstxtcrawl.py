@@ -35,7 +35,7 @@ def getPageTxt(targetUrl):
 #URLのリストをもとにTextに書き込みに行く処理（Soupでのテキスト抽出はgetPageTxt()）
 def writPageTxt(Links):
         base = os.path.dirname(os.path.abspath(__file__))
-        path = base + '\\' + 'METI_NR_' + getDT() + '.txt'
+        path = base + '/' + 'METI_NR_' + getDT() + '.txt'
         with open(path, mode='w', encoding='utf-8') as file:
                 for eachUrl in Links:
                         file.write(getPageTxt(eachUrl) + '\n')
@@ -48,7 +48,7 @@ def getRssLinks():
         #「RSSのURLはここに追加」にしようとおもったけど、新着情報しかテキスト化できてないからあまり意味がない
         ]
     rssLinks = [] #URL格納用空リスト
-	upDated = [] #??差分取得用のリストでも作ったらどうだろうか。
+    upDated = [] #??差分取得用のリストでも作ったらどうだろうか。
     for rssUrl in rssUrls:
         rssDic = feedparser.parse(rssUrl) #feedparserでひとつのRSSを辞書化
         for entry in rssDic.entries:
@@ -58,6 +58,12 @@ def getRssLinks():
     for i in rssLinks:
             print(i)
     return rssLinks #リストを返す
+
+#
+
+#Histroyテキストの中のUpodateとURLのリストを突合する
+#def xmlHistoryCheck():
+
 
 #メイン処理
 urlList = getRssLinks()
