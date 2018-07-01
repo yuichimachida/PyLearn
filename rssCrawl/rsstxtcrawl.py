@@ -24,7 +24,7 @@ def getPageTxt(targetUrl):
         # 解析用のBeautifulSoupオブジェクト
         soup = BeautifulSoup(htmlData,'html.parser')
         # 以下テキスト化処理
-        titleText = soup.find(id='MainContentsArea') #タイトル, このidで全部うまくいくのか不明
+        titleText = soup.find(id='MainContentsArea') #タイトル
         bodyText = soup.findAll('p') #本文、Soupのリストオブジェクト
         urlAllText = titleText.string + '\n' #戻り値用のテキストにタイトルを書き込む
         for i in bodyText:
@@ -75,18 +75,19 @@ def createHistory():
                         ''')
     return pathExist
 
-#Histroyテキストの中のUpodateとURLのリストを突合する
+#Histroyテキストの中の更新日時・URLと今回取得したRSSのURLのリストを突合。
+#差分をHistoryに追加し、戻り値としてURLのリストを返す。
+#読み書き同時モードでの開き方がよくわからなかったのでwith Open2回やってる。
 def checkHistory(urls):
-    newUrls = []
+    newUrls = [] #戻り値用差分格納リスト
     with open(historyPath + 'history.txt', mode='r') as f:
         lines = f.readlines()
         for url in urls:
-                print(url[1])
                 checkDateUrl = url[0] + ', ' + url[1] + '\n'
                 if checkDateUrl in lines:
                         print('True, ' + url[1] + ' is exist.')
                 else:
-                        print('Else, ' + url[1] + ' is appended.')
+                        print('False, ' + url[1] + ' is appended.')
                         newUrls.append(url)
     with open(historyPath + 'history.txt', mode='a') as add:
         for newUrl in newUrls:
@@ -94,9 +95,10 @@ def checkHistory(urls):
     return newUrls
 
 #プログラム動作パス
-#任意のパスの場合
+#任意のパスの場合は↓のコメントアウト解除してパスを書く。
 #basePath = 'ここにパスを書く'
-basePath = os.path.dirname(os.path.abspath(__file__)) #デフォルトはこの.pyの実行フォルダ
+#デフォルトはこの.pyの実行フォルダ。デフォルトを使いたくない場合はコメントアウト。
+basePath = os.path.dirname(os.path.abspath(__file__))
 historyPath = basePath + r'/history/'
 savePath = basePath + r'/TextData/'
 
