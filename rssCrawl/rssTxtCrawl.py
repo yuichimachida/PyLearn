@@ -3,25 +3,25 @@
 経産省RSSのうち、新着情報のテキストをとってくるプログラム
 
 フォルダ構成はとりあえず以下の通り。
-base directory  - rssTxtCrawl.py
-                - d MetiText    - d histry    - histry.txt
-                                - METI_新着_2018xxxxxxx.txt
+basePath  - (rssTxtCrawl.py)
+          - d MetiText    - d histry                  - histry.txt
+                          - METI_新着_2018xxxxxxx.txt
 
-最初の実行のタイミングで(存在しなければ)MetiTextフォルダとhistoryフォルダ、history.txtを作成。
+実行のタイミングでMetiText、history, history.txtが存在しなければそれぞれを作成。
 
-RSSのデータから更新日とURLでhistory.txtの行と突合。
+RSSのデータはfeedparserで取得。更新日とURLで過去に取得した履歴（history.txt）と突合。
+突合結果に応じてMetiTextフォルダには差分のテキストデータが追加される。
+テキストが書き込まれたらhistory.txtに更新日付とURLを追加書き込み。
 
-MetiTextフォルダには実行のたびに差分のテキストデータが追加される。
-history.txtには取得したURLの更新日付とURLを保持。
+なお、上記実行前にhistory.txtから古い履歴を削除する処理が走る。履歴の保持はとりあえず14日で設定。
+history.txtの履歴は手動で削除もできるが、余計な改行などが入るとエラーになるので注意。
 
-実行のたびにhistory.txtから古い履歴を削除するようにしている。とりあえず14日。
-history.txtを手動で消したりすることもできるが、余計な改行とか入るとエラーになるので注意。
-
-HPからのテキスト抽出は、<h>系と<p>タグのほか、本文の一部を構成している場合のある<ul>タグ。
-<ul>タグだと末尾のリンク集とかも取れてしまうので、要らなければbeautifulsoupのfind_allから<ul>タグを削除。
+HPからのテキスト抽出Beautifulsoupは、<h>系と<p>タグのほか、<ul>タグを抽出する。
+本文の一部を構成している場合もあるためだが、末尾のリンク集なども取れてしまうので、
+<ul>が不要ならばbeautifulsoupのfind_allの取得対象リストから<ul>タグを削除。
 
 環境に応じてbasePathを設定できるようにグローバル変数で代入一回だけにしている。
-フォルダ構成がもし全然違う形になるようなら、そのときに他のフォルダPathもグローバル変数に全部修正したほうがいいかも。
+フォルダ構成が違う形になるようなら、そのときに他のPath変数（historyPathなど）もグローバル変数に修正したほうがいいかも。
 '''
 import os, datetime, sys
 import feedparser #RSS(xml)解析
@@ -32,7 +32,7 @@ import re #正規表現処理
 '''
 実行日取得関数(文字列)
 '''
-# ファイル名用と、historyの実行日メモ行用にパラメータ分けしている。あまり意味はない。
+# ファイル名用と、history.txtへの実行日メモ用に形式を分ける分岐処理を行っている。
 def getDT(para):
     now = datetime.datetime.now()
     if para == 'filename':
@@ -44,7 +44,7 @@ def getDT(para):
 '''
 Txtファイル抽出、書き込み系処理
 '''
-# 各ページのURLをもとにテキストを返す処理
+# 各ページのURLをもとにテキスト抽出して返す処理
 def extractPageTxt(targetUrl):
     # 記事のHTMLを取得
     htmlData = urllib.request.urlopen(targetUrl).read().decode('utf-8')
@@ -59,7 +59,8 @@ def extractPageTxt(targetUrl):
     print(targetUrl + " ...Text extracted.")
     return retText
 
-# URLのリストをもとにText抽出を行い、ファイルに書き込む。ファイル名に実行日を記載。
+# 与えられたURLのリストをもとにText抽出を行い、ファイルに書き込む。
+# ファイル名に実行日時が記載されるようにしている。
 # 1件の抽出が終わったらhistoryに書き込む。
 def writPageTxt(Links):
     textPath = basePath + r'/MetiText/' + 'METI_新着_' + getDT('filename') + '.txt'    
@@ -78,14 +79,14 @@ def writeHistory(singleUrl):
     with open(historyPath + 'history.txt', mode='a') as addHistory:
         addHistory.writelines(singleUrl[0]+ ', ' + singleUrl[1] +'\n')
 
-# 実行ごとにhistory.txtに区切り(open/close)を入れる。あまり意味はないけど。
+# 実行ごとにhistory.txtに区切り(open/close)を入れる。念のため。
 def splitHistory(splitStr):
     historyPath = basePath + r'/MetiText/history/'
     with open(historyPath + 'history.txt', mode='a') as splitHistory:
         splitHistory.writelines(getDT('histline') + ' ' + splitStr +'\n')
 
-# Histroyテキストの中の更新日時・URLと今回取得したRSSのURLのリストを突合。
-# 差分となるURLリストをHistoryに追加し、戻り値にする。
+# histroy.txtの中の更新日時・URLと今回取得したRSSのURLのリストを突合。
+# 差分となるURL(と更新日)のリストを戻り値にする。
 def checkHistory(DatesLinks):
     historyPath = basePath + r'/MetiText/history/'
     newUrls = [] #戻り値用差分格納リスト
@@ -99,9 +100,10 @@ def checkHistory(DatesLinks):
     print(str(len(newUrls)) + " URLs are updated from latest fetch.")
     return newUrls
 
-# history.txtに履歴が貯まりすぎていたら削除する。とりあえず２週間とする。
-# historyをCurrentとして取得して、行の先頭の日付を実行日日付と突合する。
-# 設定した日数未満なら、行をrefleshに退避。
+# history.txtに履歴が貯まりすぎていたら削除する。とりあえず14日としている。
+# 現在のhistoryをcurrentHistoryとしてリスト化して、行の先頭の日付を実行日日付と突合する。
+# 設定した日数未満なら、行をrefleshに退避してhistory.txtに全上書きする。
+# もうすこしスマートなやり方があったかもしれないので改善できるならしたい。
 def clearHistory():
     today = datetime.datetime.today()
     refleshHistories = []
